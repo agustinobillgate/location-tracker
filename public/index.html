@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Location Sharing</title>
+  <style>
+    #map {
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-time Location Sharing</h1>
+  <div id="map"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.css" rel="stylesheet" />
+
+  <script>
+    const socket = io('http://localhost:3000');
+    const mapboxToken = 'pk.eyJ1IjoiYWd1c3Rpbm9iaWxsIiwiYSI6ImNscDZqbXI4YTF4bTMyaXM2anQyNTIzam8ifQ.m0_3YDhlYa_V6wt3mvVLyQ';
+
+    // Initialize Mapbox map
+    mapboxgl.accessToken = mapboxToken;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [0, 0], // Default center
+      zoom: 2, // Default zoom
+    });
+
+    // Wait for the map to load before getting the user's location
+    map.on('load', () => {
+      // Call the function to get the user's location
+      getUserLocation();
+
+      // Listen for location updates from other users
+      socket.on('updateLocation', (data) => {
+        // Update the map with the new location
+        updateMap(data.id, data.location);
+      });
+
+      // Listen for broadcasted user locations every 5 seconds
+      socket.on('broadcastAllLocations', (allLocations) => {
+        // Update the map with the received locations
+        Object.keys(allLocations).forEach(userId => {
+          const location = allLocations[userId].location;
+          updateMap(userId, location);
+        });
+      });
+    });
+
+    // Get user's location using the Geolocation API
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const userLocation = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            };
+
+            // Emit the obtained location to the server
+            socket.emit('locationUpdate', userLocation);
+
+            // Reverse geocode to get location name
+            reverseGeocode(userLocation);
+
+            // Update map center and zoom to user's location
+            map.flyTo({
+              center: [userLocation.longitude, userLocation.latitude],
+              zoom: 12, // You can adjust the zoom level as needed
+            });
+          },
+          (error) => {
+            console.error('Error getting user location:', error.message);
+          }
+        );
+      } else {
+        console.error('Geolocation is not supported by this browser.');
+      }
+    }
+
+    // Reverse geocode using the Mapbox Geocoding API
+    function reverseGeocode(location) {
+      const apiUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${location.longitude},${location.latitude}.json?access_token=${mapboxToken}`;
+
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          const locationName = data.features[0].place_name;
+          console.log('Location:', locationName);
+        })
+        .catch(error => {
+          console.error('Error in reverse geocoding:', error);
+        });
+    }
+
+    // Function to update the map
+function updateMap(id, location) {
+  // Check if the source (marker) exists
+  if (!map.getSource(id)) {
+    // If the source doesn't exist, add a new source and layer
+    map.addSource(id, {
+      type: 'geojson',
+      data: {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude],
+      },
+    });
+
+    map.addLayer({
+      id: id,
+      type: 'circle',
+      source: id,
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#FF0000', // Red color for markers
+      },
+    });
+  } else {
+    // If the source exists, update its data
+    map.getSource(id).setData({
+      type: 'Point',
+      coordinates: [location.longitude, location.latitude],
+    });
+  }
+}
+
+  </script>
+</body>
+</html>
