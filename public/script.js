@@ -1,4 +1,4 @@
-const socket = io('http://localhost:3000');
+const socket = io();
 const mapboxToken = 'pk.eyJ1IjoiYWd1c3Rpbm9iaWxsIiwiYSI6ImNscDZqbXI4YTF4bTMyaXM2anQyNTIzam8ifQ.m0_3YDhlYa_V6wt3mvVLyQ';
 
 mapboxgl.accessToken = mapboxToken;
