@@ -35,7 +35,7 @@ function getUserLocation() {
         reverseGeocode(userLocation);
         map.flyTo({
           center: [userLocation.longitude, userLocation.latitude],
-          zoom: 20,
+          zoom: 18,
         });
       },
       (error) => {
@@ -63,6 +63,12 @@ function reverseGeocode(location) {
 
 function updateMap(id, location) {
   if (!map.getSource(id)) {
+    map.loadImage('https://static.vecteezy.com/system/resources/thumbnails/016/314/852/small/map-pointer-icon-gps-location-symbol-maps-pin-location-map-icon-free-png.png',
+      (err, image) => {
+        if (err) throw err
+        map.addImage('marker', image)
+      }
+    )
     map.addSource(id, {
       type: 'geojson',
       data: {
@@ -72,11 +78,11 @@ function updateMap(id, location) {
     });
     map.addLayer({
       id: id,
-      type: 'circle',
+      type: 'symbol',
       source: id,
-      paint: {
-        'circle-radius': 10,
-        'circle-color': '#FF0000',
+      layout: {
+        'icon-image': 'marker',
+        'icon-size': 0.25,
       },
     });
   } else {
